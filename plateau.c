@@ -3,9 +3,12 @@
 
 int is_valid_cell(int x, int y) {
     if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE) return 0;
-    // Coins morts 3x3
-    // Nouveau: Coins morts 4x4 pour un plateau 12x12
-    if ((x < 4 || x >= (BOARD_SIZE - 4)) && (y < 4 || y >= (BOARD_SIZE - 4))) return 0;
+    
+    // Coins morts 4x4. 
+    // On autorise cependant les lignes/colonnes 0, 1, 10, 11 si elles sont au centre (indices 2 à 9)
+    // pour permettre le placement des pièces.
+    if ((x < 2 || x >= 10) && (y < 2 || y >= 10)) return 0;
+    
     return 1;
 }
 
