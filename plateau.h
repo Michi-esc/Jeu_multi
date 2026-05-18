@@ -8,7 +8,7 @@ typedef enum {
 } PieceType;
 
 typedef enum {
-    NONE = 0, WHITE, BLACK, RED, BLUE
+    NONE = 0, RED, BLUE, YELLOW, GREEN
 } Color;
 
 typedef struct {
