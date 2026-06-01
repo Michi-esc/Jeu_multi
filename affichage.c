@@ -73,7 +73,8 @@ int init_sdl(SDL_Window **window, SDL_Renderer **renderer) {
         return 0;
     }
 
-    *window = SDL_CreateWindow("Echecs Multijoueur", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_SIZE, WINDOW_SIZE, SDL_WINDOW_SHOWN);
+    // On crée la fenêtre directement à la taille WINDOW_SIZE (qui est maintenant de 560x560)
+    *window = SDL_CreateWindow("Echecs Multijoueur", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_SIZE, WINDOW_SIZE, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (!*window) {
         printf("Erreur de creation de la fenetre: %s\n", SDL_GetError());
         SDL_Quit();
@@ -87,6 +88,11 @@ int init_sdl(SDL_Window **window, SDL_Renderer **renderer) {
         SDL_Quit();
         return 0;
     }
+
+    // Cette fonction est capitale : elle dit à SDL que peu importe la taille de la fenêtre,
+    // l'espace de dessin "logique" reste WINDOW_SIZE x WINDOW_SIZE.
+    SDL_RenderSetLogicalSize(*renderer, WINDOW_SIZE, WINDOW_SIZE);
+
     return 1;
 }
 

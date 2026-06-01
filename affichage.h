@@ -5,7 +5,7 @@
 #include "plateau.h"
 
 // Paramètres d'affichage
-#define TILE_SIZE 60
+#define TILE_SIZE 40
 #define WINDOW_SIZE (BOARD_SIZE * TILE_SIZE)
 
 // Initialise la SDL, crée la fenêtre et le renderer.

@@ -15,4 +15,5 @@ $(EXEC): $(OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	del /f *.o $(EXEC)
+	if exist *.o del /f *.o
+	if exist $(EXEC) del /f $(EXEC)

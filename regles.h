@@ -11,4 +11,10 @@ int verifier_et_jouer_coup(Board *b, int x1, int y1, int x2, int y2);
 
 int est_en_echec(Board *b, Color c);
 
+// Passe au prochain joueur actif
+void passer_au_tour_suivant(Board *b);
+
+// Vérifie si le pion à la position donnée doit être promu
+int doit_promouvoir(Board *b, int x, int y);
+
 #endif

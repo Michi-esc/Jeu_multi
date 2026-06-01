@@ -130,14 +130,6 @@ int verifier_et_jouer_coup(Board *b, int x1, int y1, int x2, int y2) {
         return 0;
     }
 
-    // Promotion automatique du Pion en Reine s'il arrive au bout
-    if (b->grid[y2][x2].type == PAWN) {
-        if (b->grid[y2][x2].color == WHITE && y2 == 0) b->grid[y2][x2].type = QUEEN;
-        if (b->grid[y2][x2].color == BLACK && y2 == BOARD_SIZE - 1) b->grid[y2][x2].type = QUEEN;
-        if (b->grid[y2][x2].color == RED && x2 == 0) b->grid[y2][x2].type = QUEEN;
-        if (b->grid[y2][x2].color == BLUE && x2 == BOARD_SIZE - 1) b->grid[y2][x2].type = QUEEN;
-    }
-
     // Élimination d'un joueur si son Roi est capturé
     if (temp.type == KING) {
         b->player_active[temp.color] = 0; // Le joueur ne jouera plus
@@ -151,7 +143,15 @@ int verifier_et_jouer_coup(Board *b, int x1, int y1, int x2, int y2) {
         }
     }
 
-    // Le coup est définitif
-    passer_au_tour_suivant(b);
     return 1;
+}
+
+int doit_promouvoir(Board *b, int x, int y) {
+    Piece p = b->grid[y][x];
+    if (p.type != PAWN) return 0;
+    if (p.color == WHITE && y == 0) return 1;
+    if (p.color == BLACK && y == BOARD_SIZE - 1) return 1;
+    if (p.color == RED && x == 0) return 1;
+    if (p.color == BLUE && x == BOARD_SIZE - 1) return 1;
+    return 0;
 }
