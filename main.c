@@ -3,11 +3,15 @@
 #include "plateau.h"
 #include "regles.h"
 #include "affichage.h"
+#include "moteur_thread.h"
 
 int main(int argc, char* argv[]) {
     // 1. Initialisation du jeu
     Board b;
     init_board(&b);
+
+    // Initialisation du système de sécurité (Mutex)
+    init_systeme_securite();
 
     // 2. Initialisation de la SDL
     SDL_Window *window = NULL;
@@ -58,7 +62,7 @@ int main(int argc, char* argv[]) {
                             y1 = y2;
                         } else {
                             // Sinon, on tente de jouer le coup
-                            verifier_et_jouer_coup(&b, x1, y1, x2, y2);
+                            modifier_plateau_securise(&b, x1, y1, x2, y2);
                             piece_selectionnee = 0; // On réinitialise l'état
                         }
                     }
@@ -83,6 +87,7 @@ int main(int argc, char* argv[]) {
         if (frame_time < 16) SDL_Delay(16 - frame_time);
     }
 
+    fermer_systeme_securite();
     nettoyer_sdl(window, renderer);
     return 0;
 }
