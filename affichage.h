@@ -2,6 +2,7 @@
 #define AFFICHAGE_H
 
 #include <SDL2/SDL.h>
+#include <stdint.h>
 #include "plateau.h"
 
 // Paramètres d'affichage
@@ -20,5 +21,9 @@ void dessiner_plateau(SDL_Renderer *renderer, Board *b, int sel_x, int sel_y);
 
 // Dessine l'interface par-dessus le plateau
 void dessiner_interface(SDL_Renderer *renderer, Board *b);
+
+// Fonctions de rendu de texte pixel-art
+void dessiner_texte(SDL_Renderer *r, const char *s, int x, int y, int scale, uint8_t cr, uint8_t cg, uint8_t cb);
+int largeur_texte(const char *s, int scale);
 
 #endif

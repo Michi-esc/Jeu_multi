@@ -7,19 +7,16 @@
 #include "menu.h"
 #include "ia.h"
 
-// passer_au_tour_suivant est défini dans regles.c mais non exporté dans regles.h
-// On la déclare ici pour la promotion de pion (seul cas où on en a besoin en dehors de regles.c)
-extern void passer_au_tour_suivant(Board *b);
-
-// Vérifie si le pion à (x, y) doit être promu (a atteint le bord opposé)
-static int doit_promouvoir(Board *b, int x, int y) {
-    Piece p = b->grid[y][x];
-    if (p.type != PAWN) return 0;
-    if (p.color == RED    && y == 0)             return 1;
-    if (p.color == YELLOW && y == BOARD_SIZE - 1) return 1;
-    if (p.color == BLUE   && x == BOARD_SIZE - 1) return 1;
-    if (p.color == GREEN  && x == 0)             return 1;
-    return 0;
+// Fonction utilitaire pour écrire l'historique dans le terminal
+static void afficher_historique(Board *b, int x1, int y1, int x2, int y2, int is_ia) {
+    const char* couleurs[] = {"", "BLANC", "NOIR", "ROUGE", "BLEU"};
+    const char* pieces[] = {"", "Pion", "Tour", "Cavalier", "Fou", "Reine", "Roi"};
+    Color c = b->grid[y2][x2].color;
+    PieceType pt = b->grid[y2][x2].type;
+    if (c >= WHITE && c <= BLUE && pt >= PAWN && pt <= KING) {
+        printf("[%s] %s joue : %s (%d,%d) -> (%d,%d)\n",
+               is_ia ? "IA" : "HUMAIN", couleurs[c], pieces[pt], x1, y1, x2, y2);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -69,6 +66,7 @@ int main(int argc, char *argv[]) {
     //   0 = attente du 1er clic (sélection source)
     //   1 = attente du 2e clic  (sélection destination)
     //   2 = attente du choix de promotion (pion arrivé au bout)
+    //   3 = fin de partie (victoire)
     int etat_jeu  = 0;
 
     // Drapeaux IA
@@ -80,9 +78,20 @@ int main(int argc, char *argv[]) {
     while (running) {
         Uint32 frame_start = SDL_GetTicks();
 
+        // Vérifier les conditions de victoire
+        int nb_actifs = 0;
+        int id_gagnant = 0;
+        for (int i = 1; i <= 4; i++) {
+            if (b.player_active[i]) {
+                nb_actifs++;
+                id_gagnant = i;
+            }
+        }
+        if (nb_actifs <= 1 && etat_jeu != 3) etat_jeu = 3;
+
         // --- 5a. Gestion du tour IA ---
         // Si c'est le tour d'un joueur IA et que le calcul n'a pas encore été lancé
-        if (config.joueur_ia[b.turn] && !ia_lancee && etat_jeu != 2) {
+        if (config.joueur_ia[b.turn] && !ia_lancee && etat_jeu != 2 && etat_jeu != 3) {
             ia_lancer(&b, b.turn);
             ia_lancee = 1;
         }
@@ -99,7 +108,9 @@ int main(int argc, char *argv[]) {
                     // Utiliser l'accès sécurisé fourni par le Rôle 3
                     // modifier_plateau_securise appelle verifier_et_jouer_coup,
                     // qui avance déjà le tour en interne.
-                    modifier_plateau_securise(&b, coup.x1, coup.y1, coup.x2, coup.y2);
+                    if (modifier_plateau_securise(&b, coup.x1, coup.y1, coup.x2, coup.y2)) {
+                        afficher_historique(&b, coup.x1, coup.y1, coup.x2, coup.y2, 1);
+                    }
                 } else {
                     // Aucun coup légal disponible pour l'IA → passer le tour
                     passer_au_tour_suivant(&b);
@@ -118,7 +129,7 @@ int main(int argc, char *argv[]) {
             // Les clics souris ne sont traités que lors d'un tour humain
             if (!config.joueur_ia[b.turn] &&
                 event.type == SDL_MOUSEBUTTONDOWN &&
-                etat_jeu != 2) {
+                etat_jeu != 2 && etat_jeu != 3) {
 
                 if (event.button.button == SDL_BUTTON_LEFT) {
                     int gx = event.button.x / TILE_SIZE;
@@ -145,6 +156,7 @@ int main(int argc, char *argv[]) {
                             //        qui avance déjà le tour → NE PAS rappeler
                             //        passer_au_tour_suivant ici.
                             if (modifier_plateau_securise(&b, x1, y1, x2, y2)) {
+                                afficher_historique(&b, x1, y1, x2, y2, 0);
                                 // Vérifier si le pion doit être promu
                                 // (le tour a déjà avancé, mais la pièce est encore en place)
                                 if (doit_promouvoir(&b, x2, y2)) {
@@ -187,6 +199,41 @@ int main(int argc, char *argv[]) {
         int sel_y = (etat_jeu == 1 || etat_jeu == 2) ? y1 : -1;
         dessiner_plateau(renderer, &b, sel_x, sel_y);
         dessiner_interface(renderer, &b);
+
+        // Dessin d'une bannière de chargement si l'IA réfléchit
+        if (ia_lancee) {
+            const char *msg = "IA REFLECHIT...";
+            int scale = 2;
+            int tw = largeur_texte(msg, scale);
+            SDL_Rect bg = { (WINDOW_SIZE - tw) / 2 - 10, WINDOW_SIZE / 2 - 15, tw + 20, 30 };
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 180);
+            SDL_RenderFillRect(renderer, &bg);
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+            dessiner_texte(renderer, msg, bg.x + 10, bg.y + 10, scale, 255, 200, 0);
+        }
+
+        // Dessin d'une bannière de victoire
+        if (etat_jeu == 3) {
+            const char* noms[] = {"", "BLANC", "NOIR", "ROUGE", "BLEU"};
+            char msg[64];
+            if (nb_actifs == 1) snprintf(msg, sizeof(msg), "VICTOIRE %s !", noms[id_gagnant]);
+            else                snprintf(msg, sizeof(msg), "MATCH NUL !");
+
+            int scale = 3;
+            int tw = largeur_texte(msg, scale);
+            SDL_Rect bg = { (WINDOW_SIZE - tw) / 2 - 20, WINDOW_SIZE / 2 - 25, tw + 40, 50 };
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 210);
+            SDL_RenderFillRect(renderer, &bg);
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+
+            uint8_t cr = 255, cg = 255, cb = 255;
+            if (id_gagnant == RED)   { cr = 255; cg = 50; cb = 50; }
+            if (id_gagnant == BLUE)  { cr = 100; cg = 150; cb = 255; }
+            if (id_gagnant == BLACK) { cr = 150; cg = 150; cb = 150; }
+            dessiner_texte(renderer, msg, bg.x + 20, bg.y + 16, scale, cr, cg, cb);
+        }
 
         SDL_RenderPresent(renderer);
 
