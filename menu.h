@@ -4,15 +4,25 @@
 #include <SDL2/SDL.h>
 #include "plateau.h"
 
-// Configuration choisie dans le menu avant le lancement de la partie
+// ================================================================
+//  Configuration retournée par le menu
+// ================================================================
 typedef struct {
-    int joueur_actif[5]; // [1..4] : 1 = le joueur participe, 0 = éliminé dès le départ
-    int joueur_ia[5];    // [1..4] : 1 = contrôlé par l'IA, 0 = contrôlé par un humain
+    // --- Mode solo : config de chaque joueur ---
+    int joueur_actif[5]; // [1..4] : 1 = participe, 0 = éliminé au départ
+    int joueur_ia[5];    // [1..4] : 1 = IA, 0 = humain
+
+    // --- Mode réseau ---
+    // 0 = solo | 1 = héberger (serveur) | 2 = rejoindre (client)
+    int  mode_reseau;
+    char ip_serveur[64]; // IP saisie par l'utilisateur (mode rejoindre)
 } GameConfig;
 
-// Affiche le menu de configuration et bloque jusqu'à ce que le joueur valide.
-// Retourne 1 si la partie doit démarrer, 0 si l'utilisateur ferme la fenêtre.
-// La fenêtre/renderer SDL doit déjà être initialisée avant l'appel.
+// ================================================================
+//  Affiche le menu principal et tous les sous-menus jusqu'à ce
+//  que l'utilisateur soit prêt à jouer.
+//  Retourne 1 → lancer la partie, 0 → fermeture de la fenêtre.
+// ================================================================
 int afficher_menu(SDL_Renderer *renderer, GameConfig *config);
 
 #endif

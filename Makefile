@@ -1,8 +1,8 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
-LIBS = -lmingw32 -lSDL2main -lSDL2 -lpthread
+LIBS = -lmingw32 -lSDL2main -lSDL2 -lpthread -lws2_32
 
-SRC = main.c plateau.c regles.c affichage.c moteur_thread.c synchronisation.c ia.c menu.c
+SRC = main.c plateau.c regles.c affichage.c moteur_thread.c synchronisation.c ia.c menu.c reseau.c
 OBJ = $(SRC:.c=.o)
 EXEC = echecs4.exe
 
