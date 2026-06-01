@@ -1,0 +1,317 @@
+#include "menu.h"
+#include <string.h>
+#include <stdint.h>
+
+// ============================================================
+//  Police de caractères 5×5 (pixel art, pas de SDL_ttf requis)
+//  Encodage : 5 octets par glyphe, chaque octet = une ligne
+//  Bit 4 = colonne gauche, bit 0 = colonne droite
+//  Index : 0=' ', 1-10='0'-'9', 11-36='A'-'Z'
+// ============================================================
+static const uint8_t FONT[37][5] = {
+    {0x00,0x00,0x00,0x00,0x00}, // ' '
+    {0x0E,0x13,0x15,0x19,0x0E}, // '0'
+    {0x04,0x0C,0x04,0x04,0x0E}, // '1'
+    {0x0E,0x11,0x06,0x08,0x1F}, // '2'
+    {0x1E,0x01,0x0E,0x01,0x1E}, // '3'
+    {0x12,0x12,0x1E,0x02,0x02}, // '4'
+    {0x1F,0x10,0x1E,0x01,0x1E}, // '5'
+    {0x0E,0x10,0x1E,0x11,0x0E}, // '6'
+    {0x1F,0x02,0x04,0x08,0x08}, // '7'
+    {0x0E,0x11,0x0E,0x11,0x0E}, // '8'
+    {0x0E,0x11,0x0F,0x01,0x0E}, // '9'
+    {0x0E,0x11,0x1F,0x11,0x11}, // 'A'
+    {0x1E,0x11,0x1E,0x11,0x1E}, // 'B'
+    {0x0E,0x10,0x10,0x10,0x0E}, // 'C'
+    {0x1E,0x11,0x11,0x11,0x1E}, // 'D'
+    {0x1F,0x10,0x1E,0x10,0x1F}, // 'E'
+    {0x1F,0x10,0x1E,0x10,0x10}, // 'F'
+    {0x0E,0x10,0x16,0x11,0x0F}, // 'G'
+    {0x11,0x11,0x1F,0x11,0x11}, // 'H'
+    {0x0E,0x04,0x04,0x04,0x0E}, // 'I'
+    {0x03,0x01,0x01,0x11,0x0E}, // 'J'
+    {0x11,0x12,0x1C,0x12,0x11}, // 'K'
+    {0x10,0x10,0x10,0x10,0x1F}, // 'L'
+    {0x11,0x1B,0x15,0x11,0x11}, // 'M'
+    {0x11,0x19,0x15,0x13,0x11}, // 'N'
+    {0x0E,0x11,0x11,0x11,0x0E}, // 'O'
+    {0x1E,0x11,0x1E,0x10,0x10}, // 'P'
+    {0x0E,0x11,0x11,0x16,0x0D}, // 'Q'
+    {0x1E,0x11,0x1E,0x12,0x11}, // 'R'
+    {0x0E,0x10,0x0E,0x01,0x1E}, // 'S'
+    {0x1F,0x04,0x04,0x04,0x04}, // 'T'
+    {0x11,0x11,0x11,0x11,0x0E}, // 'U'
+    {0x11,0x11,0x11,0x0A,0x04}, // 'V'
+    {0x11,0x11,0x15,0x1B,0x11}, // 'W'
+    {0x11,0x0A,0x04,0x0A,0x11}, // 'X'
+    {0x11,0x0A,0x04,0x04,0x04}, // 'Y'
+    {0x1F,0x02,0x04,0x08,0x1F}, // 'Z'
+};
+
+// ============================================================
+//  Primitives de dessin internes
+// ============================================================
+
+// Dessine un seul caractère (majuscule, chiffre, ou espace) en pixel art.
+// scale : taille en pixels de chaque "pixel" du glyphe (1=5×5px, 2=10×10px, 3=15×15px)
+static void dessiner_char(SDL_Renderer *r, char c, int x, int y, int scale,
+                           uint8_t cr, uint8_t cg, uint8_t cb) {
+    int idx;
+    if      (c == ' ')                idx = 0;
+    else if (c >= '0' && c <= '9')   idx = 1  + (c - '0');
+    else if (c >= 'A' && c <= 'Z')   idx = 11 + (c - 'A');
+    else if (c >= 'a' && c <= 'z')   idx = 11 + (c - 'a'); // même glyphe en maj
+    else return;
+
+    SDL_SetRenderDrawColor(r, cr, cg, cb, 255);
+    for (int row = 0; row < 5; row++) {
+        for (int col = 0; col < 5; col++) {
+            if (FONT[idx][row] & (0x10 >> col)) {
+                SDL_Rect px = { x + col * scale, y + row * scale, scale, scale };
+                SDL_RenderFillRect(r, &px);
+            }
+        }
+    }
+}
+
+// Dessine une chaîne de caractères (1 pixel d'écart entre chaque glyphe).
+static void dessiner_texte(SDL_Renderer *r, const char *s, int x, int y, int scale,
+                            uint8_t cr, uint8_t cg, uint8_t cb) {
+    int pas = (5 + 1) * scale; // largeur d'un char + espace inter-glyphe
+    for (int i = 0; s[i]; i++) {
+        dessiner_char(r, s[i], x + i * pas, y, scale, cr, cg, cb);
+    }
+}
+
+// Calcule la largeur en pixels d'une chaîne rendue à une certaine échelle.
+static int largeur_texte(const char *s, int scale) {
+    return (int)strlen(s) * (5 + 1) * scale;
+}
+
+// Dessine un bouton rectangle avec un label centré.
+// actif=1 → fond coloré + texte blanc | actif=0 → fond sombre + texte teinté
+static void dessiner_bouton(SDL_Renderer *r, SDL_Rect rect, const char *label,
+                             int actif, uint8_t br, uint8_t bg, uint8_t bb) {
+    // Fond
+    if (actif) {
+        SDL_SetRenderDrawColor(r, br, bg, bb, 255);
+    } else {
+        SDL_SetRenderDrawColor(r, 38, 38, 50, 255);
+    }
+    SDL_RenderFillRect(r, &rect);
+
+    // Bordure (couleur du joueur)
+    SDL_SetRenderDrawColor(r, br, bg, bb, actif ? 255 : 110);
+    SDL_RenderDrawRect(r, &rect);
+
+    // Texte centré (scale 2 = 10px de haut)
+    int scale = 2;
+    int tw = largeur_texte(label, scale);
+    int tx = rect.x + (rect.w - tw) / 2;
+    int ty = rect.y + (rect.h - 5 * scale) / 2;
+    uint8_t tr = actif ? 255 : br;
+    uint8_t tg = actif ? 255 : bg;
+    uint8_t tb = actif ? 255 : bb;
+    dessiner_texte(r, label, tx, ty, scale, tr, tg, tb);
+}
+
+// ============================================================
+//  Données constantes du menu
+// ============================================================
+
+// Couleurs RGB associées à chaque joueur (indice = Color enum : 1=RED..4=GREEN)
+static const uint8_t COULEURS[5][3] = {
+    {  0,   0,   0}, // NONE
+    {210,  55,  55}, // RED   — Rouge
+    { 55, 100, 215}, // BLUE  — Bleu
+    {210, 195,  45}, // YELLOW— Jaune
+    { 50, 195,  65}, // GREEN — Vert
+};
+
+static const char *NOMS_JOUEURS[5] = { "", "ROUGE", "BLEU", "JAUNE", "VERT" };
+
+// ============================================================
+//  Dimensions et positions du menu (pour WINDOW_SIZE = 480)
+// ============================================================
+#define MENU_TITRE_H   42   // hauteur de la bande titre
+#define MENU_ROW_H     85   // hauteur d'une ligne joueur
+#define MENU_ROW_Y0    55   // y du début de la première ligne joueur
+#define MENU_JOUER_Y  408   // y du bouton JOUER
+#define MENU_JOUER_H   48   // hauteur du bouton JOUER
+
+// ============================================================
+//  Rendu du menu complet
+// ============================================================
+static void dessiner_menu(SDL_Renderer *r, GameConfig *cfg, int survol_jouer) {
+    // --- Fond général ---
+    SDL_SetRenderDrawColor(r, 16, 16, 26, 255);
+    SDL_RenderClear(r);
+
+    // --- Bande titre ---
+    SDL_Rect bande = { 0, 0, WINDOW_SIZE, MENU_TITRE_H };
+    SDL_SetRenderDrawColor(r, 26, 26, 40, 255);
+    SDL_RenderFillRect(r, &bande);
+
+    // Titre centré, scale 3 → "ECHECS 4 JOUEURS" = 16 chars × 18px = 288px
+    const char *titre = "ECHECS 4 JOUEURS";
+    int tx = (WINDOW_SIZE - largeur_texte(titre, 3)) / 2;
+    dessiner_texte(r, titre, tx, (MENU_TITRE_H - 15) / 2, 3, 255, 195, 45);
+
+    // Ligne de séparation dorée
+    SDL_SetRenderDrawColor(r, 255, 195, 45, 255);
+    SDL_RenderDrawLine(r, 0, MENU_TITRE_H, WINDOW_SIZE, MENU_TITRE_H);
+
+    // --- En-têtes colonnes ---
+    dessiner_texte(r, "JOUEUR",  8,  46, 1, 100, 100, 120);
+    dessiner_texte(r, "STATUT",  92, 46, 1, 100, 100, 120);
+    dessiner_texte(r, "MODE",   245, 46, 1, 100, 100, 120);
+
+    // --- Lignes joueurs ---
+    for (int i = 1; i <= 4; i++) {
+        int ry = MENU_ROW_Y0 + (i - 1) * MENU_ROW_H;
+        uint8_t cr = COULEURS[i][0], cg = COULEURS[i][1], cb = COULEURS[i][2];
+
+        // 1. Carré couleur (80×80) — clic = toggle actif/inactif
+        SDL_Rect sq = { 5, ry + 3, 80, 78 };
+        if (cfg->joueur_actif[i]) {
+            SDL_SetRenderDrawColor(r, cr, cg, cb, 255);
+        } else {
+            SDL_SetRenderDrawColor(r, 35, 35, 45, 255);
+        }
+        SDL_RenderFillRect(r, &sq);
+
+        // Bordure du carré (toujours colorée)
+        SDL_SetRenderDrawColor(r, cr, cg, cb, 200);
+        SDL_RenderDrawRect(r, &sq);
+
+        // Nom du joueur dans le carré (centré)
+        int nw = largeur_texte(NOMS_JOUEURS[i], 1);
+        int nx = sq.x + (sq.w - nw) / 2;
+        int ny = sq.y + (sq.h - 5) / 2;
+        uint8_t nalpha = cfg->joueur_actif[i] ? 240 : 80;
+        dessiner_texte(r, NOMS_JOUEURS[i], nx, ny, 1, nalpha, nalpha, nalpha);
+
+        // 2. Statut textuel + hint clic
+        const char *statut = cfg->joueur_actif[i] ? "ACTIF" : "INACTIF";
+        uint8_t sr = cfg->joueur_actif[i] ? 60  : 180;
+        uint8_t sg = cfg->joueur_actif[i] ? 195 : 70;
+        uint8_t sb = cfg->joueur_actif[i] ? 60  : 60;
+        dessiner_texte(r, statut,  92, ry + 10, 1, sr, sg, sb);
+        dessiner_texte(r, "CLIQUER", 92, ry + 22, 1, 60, 60, 75);
+        dessiner_texte(r, "POUR", 92, ry + 30, 1, 60, 60, 75);
+        dessiner_texte(r, "BASCULER", 92, ry + 38, 1, 60, 60, 75);
+
+        // 3. Boutons HUMAIN / IA (visibles seulement si actif)
+        if (cfg->joueur_actif[i]) {
+            SDL_Rect btn_h  = {  92, ry + 48, 150, 30 };
+            SDL_Rect btn_ia = { 248, ry + 48,  80, 30 };
+            int is_human = (cfg->joueur_ia[i] == 0);
+            dessiner_bouton(r, btn_h,  "HUMAIN", is_human,  cr, cg, cb);
+            dessiner_bouton(r, btn_ia, "IA",    !is_human,  cr, cg, cb);
+        } else {
+            SDL_Rect zone_grise = { 92, ry + 48, 236, 30 };
+            SDL_SetRenderDrawColor(r, 28, 28, 36, 255);
+            SDL_RenderFillRect(r, &zone_grise);
+            dessiner_texte(r, "JOUEUR DESACTIVE", 96, ry + 56, 1, 55, 55, 65);
+        }
+
+        // Séparateur entre joueurs
+        SDL_SetRenderDrawColor(r, 35, 35, 50, 255);
+        SDL_RenderDrawLine(r, 0, ry + MENU_ROW_H - 1, WINDOW_SIZE, ry + MENU_ROW_H - 1);
+    }
+
+    // --- Bouton JOUER ---
+    SDL_Rect btn_jouer = { (WINDOW_SIZE - 200) / 2, MENU_JOUER_Y, 200, MENU_JOUER_H };
+    uint8_t jbr = survol_jouer ? 80  : 50;
+    uint8_t jbg = survol_jouer ? 240 : 200;
+    uint8_t jbb = survol_jouer ? 80  : 50;
+    dessiner_bouton(r, btn_jouer, "JOUER", 1, jbr, jbg, jbb);
+
+    // Note d'information sous le bouton
+    const char *note = "MIN 2 JOUEURS ACTIFS";
+    dessiner_texte(r, note, (WINDOW_SIZE - largeur_texte(note, 1)) / 2,
+                   MENU_JOUER_Y + MENU_JOUER_H + 6, 1, 70, 70, 85);
+
+    SDL_RenderPresent(r);
+}
+
+// ============================================================
+//  Comptage des joueurs actifs
+// ============================================================
+static int compter_actifs(GameConfig *cfg) {
+    int n = 0;
+    for (int i = 1; i <= 4; i++) n += cfg->joueur_actif[i];
+    return n;
+}
+
+// ============================================================
+//  Point d'entrée public
+// ============================================================
+int afficher_menu(SDL_Renderer *renderer, GameConfig *config) {
+    // Configuration par défaut : 4 joueurs actifs, tous humains
+    for (int i = 1; i <= 4; i++) {
+        config->joueur_actif[i] = 1;
+        config->joueur_ia[i]    = 0;
+    }
+
+    int survol_jouer = 0;
+    SDL_Event event;
+
+    while (1) {
+        dessiner_menu(renderer, config, survol_jouer);
+
+        while (SDL_PollEvent(&event)) {
+
+            // Fermeture de la fenêtre → annuler
+            if (event.type == SDL_QUIT) return 0;
+
+            // Suivi du curseur pour l'effet de survol sur "JOUER"
+            if (event.type == SDL_MOUSEMOTION) {
+                int mx = event.motion.x, my = event.motion.y;
+                survol_jouer = (mx >= (WINDOW_SIZE - 200) / 2 &&
+                                mx <= (WINDOW_SIZE + 200) / 2 &&
+                                my >= MENU_JOUER_Y &&
+                                my <= MENU_JOUER_Y + MENU_JOUER_H);
+            }
+
+            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+                int mx = event.button.x, my = event.button.y;
+
+                // --- Bouton JOUER ---
+                if (mx >= (WINDOW_SIZE - 200) / 2 && mx <= (WINDOW_SIZE + 200) / 2 &&
+                    my >= MENU_JOUER_Y && my <= MENU_JOUER_Y + MENU_JOUER_H) {
+                    if (compter_actifs(config) >= 2) return 1;
+                }
+
+                // --- Lignes joueurs ---
+                for (int i = 1; i <= 4; i++) {
+                    int ry = MENU_ROW_Y0 + (i - 1) * MENU_ROW_H;
+
+                    // Carré couleur → toggle actif (minimum 2 joueurs)
+                    if (mx >= 5 && mx <= 85 && my >= ry + 3 && my <= ry + 81) {
+                        if (config->joueur_actif[i] && compter_actifs(config) > 2) {
+                            config->joueur_actif[i] = 0;
+                        } else if (!config->joueur_actif[i]) {
+                            config->joueur_actif[i] = 1;
+                        }
+                    }
+
+                    // Boutons HUMAIN / IA (seulement si le joueur est actif)
+                    if (config->joueur_actif[i]) {
+                        int btn_y = ry + 48;
+                        // HUMAIN
+                        if (mx >= 92 && mx <= 242 && my >= btn_y && my <= btn_y + 30) {
+                            config->joueur_ia[i] = 0;
+                        }
+                        // IA
+                        if (mx >= 248 && mx <= 328 && my >= btn_y && my <= btn_y + 30) {
+                            config->joueur_ia[i] = 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        SDL_Delay(16); // ~60 FPS
+    }
+}
