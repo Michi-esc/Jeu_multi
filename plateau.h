@@ -1,7 +1,7 @@
 #ifndef PLATEAU_H
 #define PLATEAU_H
 
-#define BOARD_SIZE 12
+#define BOARD_SIZE 14
 
 typedef enum {
     EMPTY = 0, PAWN, ROOK, KNIGHT, BISHOP, QUEEN, KING, OUT_OF_BOUNDS
