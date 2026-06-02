@@ -25,6 +25,7 @@
   #include <netdb.h>
   #include <fcntl.h>
   #include <sys/select.h>
+  #include <ifaddrs.h>
   #include <errno.h>
   typedef int  sock_t;
   #define INVALIDE  (-1)
@@ -199,16 +200,39 @@ int reseau_demarrer_serveur(Board *b) {
     }
 
     // Récupérer l'IP locale pour l'afficher dans le menu
-    char hostname[256];
-    gethostname(hostname, sizeof(hostname));
-    struct hostent *he = gethostbyname(hostname);
-    if (he && he->h_addr_list[0]) {
-        strncpy(net_info.ip_locale,
-                inet_ntoa(*(struct in_addr *)he->h_addr_list[0]),
-                sizeof(net_info.ip_locale) - 1);
-    } else {
-        strncpy(net_info.ip_locale, "???", sizeof(net_info.ip_locale) - 1);
+#ifdef _WIN32
+    {
+        char hostname[256];
+        gethostname(hostname, sizeof(hostname));
+        struct hostent *he = gethostbyname(hostname);
+        if (he && he->h_addr_list[0])
+            strncpy(net_info.ip_locale,
+                    inet_ntoa(*(struct in_addr *)he->h_addr_list[0]),
+                    sizeof(net_info.ip_locale) - 1);
+        else
+            strncpy(net_info.ip_locale, "???", sizeof(net_info.ip_locale) - 1);
     }
+#else
+    // macOS / Linux : getifaddrs() pour l'IP de la première interface non-loopback
+    {
+        struct ifaddrs *ifap, *ifa;
+        strncpy(net_info.ip_locale, "???", sizeof(net_info.ip_locale) - 1);
+        if (getifaddrs(&ifap) == 0) {
+            for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+                if (!ifa->ifa_addr) continue;
+                if (ifa->ifa_addr->sa_family != AF_INET) continue;
+                struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+                // Ignorer loopback (127.x.x.x)
+                if ((ntohl(sa->sin_addr.s_addr) >> 24) == 127) continue;
+                strncpy(net_info.ip_locale,
+                        inet_ntoa(sa->sin_addr),
+                        sizeof(net_info.ip_locale) - 1);
+                break;
+            }
+            freeifaddrs(ifap);
+        }
+    }
+#endif
 
     // Lancer l'acceptation en arrière-plan (non-bloquant)
     pthread_create(&thr_accept, NULL, thread_accept, NULL);
