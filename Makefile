@@ -4,7 +4,13 @@ LIBS = $(shell sdl2-config --libs) -lpthread -lws2_32
 
 SRC = $(wildcard *.c)
 OBJ = $(SRC:.c=.o)
-EXEC = jeu_multi
+
+ifeq ($(OS),Windows_NT)
+	EXEC = jeu_multi.exe
+	LIBS += -lws2_32
+else
+	EXEC = jeu_multi
+endif
 
 all: $(EXEC)
 
