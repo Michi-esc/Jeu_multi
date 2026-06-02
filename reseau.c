@@ -1,5 +1,6 @@
 #include "reseau.h"
 #include "moteur_thread.h"
+#include "regles.h"
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
@@ -89,8 +90,11 @@ static void *thread_recv_client(void *arg) {
     while (g_running) {
         if (!recv_exact(sock, &pkt, sizeof(pkt))) break;
 
-        // Appliquer le coup via l'accès sécurisé (Rôle 3)
-        modifier_plateau_securise(g_board, pkt.x1, pkt.y1, pkt.x2, pkt.y2);
+        // Le serveur RE-VALIDE le coup reçu avant de l'appliquer et diffuser
+        if (!modifier_plateau_securise(g_board, pkt.x1, pkt.y1, pkt.x2, pkt.y2)) {
+            // Coup rejeté (cheating ou désync) : ignorer silencieusement
+            continue;
+        }
 
         // Diffuser le coup à tous les AUTRES clients (pas d'écho)
         pthread_mutex_lock(&mx_socks);
@@ -178,8 +182,18 @@ static void *thread_recv_serveur(void *arg) {
             continue;
         }
 
-        // Coup reçu → l'appliquer via l'accès sécurisé
-        modifier_plateau_securise(g_board, pkt.x1, pkt.y1, pkt.x2, pkt.y2);
+        // Coup reçu du serveur : déjà validé côté serveur.
+        // On force b.turn à la couleur de la pièce qui bouge pour que
+        // verifier_et_jouer_coup l'accepte même en cas de micro-décalage.
+        if (pkt.x1 >= 0 && pkt.y1 >= 0 && pkt.x2 >= 0 && pkt.y2 >= 0 &&
+            pkt.x1 < BOARD_SIZE && pkt.y1 < BOARD_SIZE &&
+            pkt.x2 < BOARD_SIZE && pkt.y2 < BOARD_SIZE) {
+            Color couleur_piece = g_board->grid[pkt.y1][pkt.x1].color;
+            if (couleur_piece != NONE) {
+                g_board->turn = couleur_piece; // forcer le tour pour accepter le coup
+                modifier_plateau_securise(g_board, pkt.x1, pkt.y1, pkt.x2, pkt.y2);
+            }
+        }
     }
     return NULL;
 }
