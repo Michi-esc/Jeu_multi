@@ -46,7 +46,7 @@ static Board  *g_board           = NULL;
 static int     g_running         = 0;
 
 // Couleurs assignées aux clients dans l'ordre de connexion
-static const Color COULEURS_CLIENTS[MAX_CLIENTS] = { BLUE, BLACK, WHITE };
+static const Color COULEURS_CLIENTS[MAX_CLIENTS] = { BLACK, RED, BLUE };
 
 static pthread_mutex_t mx_socks = PTHREAD_MUTEX_INITIALIZER;
 
@@ -176,7 +176,7 @@ int reseau_demarrer_serveur(Board *b) {
     g_board  = b;
     g_running = 1;
     net_info.mode       = NET_SERVEUR;
-    net_info.ma_couleur = RED;   // le serveur joue toujours RED
+    net_info.ma_couleur = WHITE; // le serveur joue toujours WHITE
 
     for (int i = 0; i < MAX_CLIENTS; i++) cli_socks[i] = (sock_t)INVALIDE;
 

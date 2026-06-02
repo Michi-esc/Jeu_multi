@@ -64,10 +64,10 @@ int main(int argc, char *argv[]) {
 
         if (config.mode_reseau == 1) {
             // Serveur = RED + clients connectés
-            b.player_active[RED]    = 1;
-            b.player_active[BLUE]   = (net_info.nb_connectes >= 1) ? 1 : 0;
-            b.player_active[BLACK]  = (net_info.nb_connectes >= 2) ? 1 : 0;
-            b.player_active[WHITE]  = (net_info.nb_connectes >= 3) ? 1 : 0;
+            b.player_active[WHITE]  = 1;
+            b.player_active[BLACK]  = (net_info.nb_connectes >= 1) ? 1 : 0;
+            b.player_active[RED]    = (net_info.nb_connectes >= 2) ? 1 : 0;
+            b.player_active[BLUE]   = (net_info.nb_connectes >= 3) ? 1 : 0;
         } else {
             // Client : tous actifs (le serveur arbitre les coups)
             for (int i = 1; i <= 4; i++) b.player_active[i] = 1;

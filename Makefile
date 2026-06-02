@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 $(shell sdl2-config --cflags)
-LIBS = $(shell sdl2-config --libs) -lpthread
+LIBS = $(shell sdl2-config --libs) -lpthread -lws2_32
 
 SRC = $(wildcard *.c)
 OBJ = $(SRC:.c=.o)
