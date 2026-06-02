@@ -128,6 +128,17 @@ static void *thread_accept(void *arg) {
         sock_t ns = accept(srv_sock, (struct sockaddr *)&addr, &alen);
         if (ns == (sock_t)INVALIDE) break;
 
+        // Handshake : échanger la version du protocole
+        int32_t proto_local  = PROTO_VERSION;
+        int32_t proto_remote = 0;
+        send_exact(ns, &proto_local, sizeof(proto_local));
+        if (!recv_exact(ns, &proto_remote, sizeof(proto_remote)) ||
+            proto_remote != PROTO_VERSION) {
+            fprintf(stderr, "[RESEAU] Client version %d incompatible (attendu %d)\n",
+                    proto_remote, PROTO_VERSION);
+            FERMER(ns); continue;
+        }
+
         // Envoyer la couleur assignée (4 octets)
         int32_t c = (int32_t)COULEURS_CLIENTS[i];
         if (!send_exact(ns, &c, sizeof(c))) { FERMER(ns); continue; }
@@ -292,6 +303,20 @@ int reseau_rejoindre(const char *ip, Board *b) {
         fcntl(cli_sock, F_SETFL, flags); // repasser en bloquant
     }
 #endif
+
+    // Handshake : envoyer notre version, recevoir celle du serveur
+    int32_t proto_local  = PROTO_VERSION;
+    int32_t proto_remote = 0;
+    if (!recv_exact(cli_sock, &proto_remote, sizeof(proto_remote)) ||
+        !send_exact(cli_sock, &proto_local,  sizeof(proto_local))) {
+        fprintf(stderr, "[RESEAU] Echec handshake version\n");
+        FERMER(cli_sock); cli_sock = (sock_t)INVALIDE; return 0;
+    }
+    if (proto_remote != PROTO_VERSION) {
+        fprintf(stderr, "[RESEAU] Serveur version %d incompatible (attendu %d) — git pull requis !\n",
+                proto_remote, PROTO_VERSION);
+        FERMER(cli_sock); cli_sock = (sock_t)INVALIDE; return 0;
+    }
 
     // Recevoir la couleur assignée (4 octets)
     int32_t couleur = 0;

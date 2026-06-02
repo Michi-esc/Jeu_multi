@@ -13,6 +13,10 @@ typedef enum {
     NET_CLIENT  = 2
 } NetMode;
 
+// Version du protocole — doit être identique sur toutes les machines
+// Incrémenter si plateau.h change (BOARD_SIZE, enum Color, etc.)
+#define PROTO_VERSION 2   // v2 : BOARD_SIZE=14, WHITE/BLACK/RED/BLUE
+
 // Paquet coup (20 octets) — x1=y1=x2=y2=-1 = signal START
 typedef struct {
     int32_t x1, y1, x2, y2;
