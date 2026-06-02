@@ -38,7 +38,7 @@
 // ================================================================
 //  État global
 // ================================================================
-NetInfo net_info = { NET_NONE, NONE, 0, 0, "" };
+NetInfo net_info = { NET_NONE, NONE, 0, 0, "", NONE, {0,0,0,0,0} };
 
 static sock_t  srv_sock          = (sock_t)INVALIDE;
 static sock_t  cli_sock          = (sock_t)INVALIDE;
@@ -157,7 +157,12 @@ static void *thread_recv_serveur(void *arg) {
         if (!recv_exact(cli_sock, &pkt, sizeof(pkt))) break;
 
         // Signal de début de partie (x1=y1=x2=y2 = -1)
+        // Le champ couleur encode : bits 0-2 = turn, bits 3-6 = player_active[1..4]
         if (pkt.x1 == -1 && pkt.y1 == -1 && pkt.x2 == -1 && pkt.y2 == -1) {
+            int32_t sync = pkt.couleur;
+            net_info.sync_turn = (Color)(sync & 0x7);
+            for (int i = 1; i <= 4; i++)
+                net_info.sync_active[i] = (sync >> (2 + i)) & 1;
             net_info.pret = 1;
             continue;
         }
@@ -321,16 +326,26 @@ void reseau_envoyer_coup(int x1, int y1, int x2, int y2, Color couleur) {
     }
 }
 
-void reseau_envoyer_start(void) {
-    // PacketCoup spécial : x1=y1=x2=y2=-1 → signal de début de partie
-    PacketCoup pkt = { -1, -1, -1, -1, 0 };
+void reseau_envoyer_start(Board *b) {
+    // Encoder l'état du plateau dans couleur :
+    // bits 0-2 = b->turn, bits 3-6 = player_active[1..4]
+    int32_t sync = (int32_t)b->turn;
+    for (int i = 1; i <= 4; i++)
+        sync |= (b->player_active[i] << (2 + i));
+
+    PacketCoup pkt = { -1, -1, -1, -1, sync };
     pthread_mutex_lock(&mx_socks);
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (cli_socks[i] != (sock_t)INVALIDE)
             send_exact(cli_socks[i], &pkt, sizeof(pkt));
     }
     pthread_mutex_unlock(&mx_socks);
-    net_info.pret = 1; // le serveur lui-même est aussi prêt
+
+    // Stocker le sync pour le serveur aussi (main.c l'utilisera)
+    net_info.sync_turn = b->turn;
+    for (int i = 1; i <= 4; i++)
+        net_info.sync_active[i] = b->player_active[i];
+    net_info.pret = 1;
 }
 
 void reseau_set_board(Board *b) {

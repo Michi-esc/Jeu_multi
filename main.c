@@ -53,8 +53,16 @@ int main(int argc, char *argv[]) {
     init_systeme_securite();
 
     // Réassigner le vrai plateau aux threads réseau (qui utilisaient un board temporaire)
-    if (config.mode_reseau != 0)
+    if (config.mode_reseau != 0) {
         reseau_set_board(&b);
+        // Appliquer l'état de sync envoyé par le serveur (turn + player_active)
+        // Garantit que tous les joueurs démarrent avec le même état de plateau
+        if (net_info.sync_turn != NONE) {
+            b.turn = net_info.sync_turn;
+            for (int i = 1; i <= 4; i++)
+                b.player_active[i] = net_info.sync_active[i];
+        }
+    }
 
     if (config.mode_reseau == 0) {
         // --- SOLO : appliquer la config manuelle ---
@@ -63,21 +71,8 @@ int main(int argc, char *argv[]) {
         while (!b.player_active[b.turn])
             b.turn = (b.turn % 4) + 1;
     } else {
-        // --- RÉSEAU : chaque PC contrôle sa couleur, pas d'IA ---
+        // --- RÉSEAU : player_active et turn seront écrasés par le sync serveur ---
         for (int i = 1; i <= 4; i++) config.joueur_ia[i] = 0;
-
-        if (config.mode_reseau == 1) {
-            // Serveur = RED + clients connectés
-            b.player_active[WHITE]  = 1;
-            b.player_active[BLACK]  = (net_info.nb_connectes >= 1) ? 1 : 0;
-            b.player_active[RED]    = (net_info.nb_connectes >= 2) ? 1 : 0;
-            b.player_active[BLUE]   = (net_info.nb_connectes >= 3) ? 1 : 0;
-        } else {
-            // Client : tous actifs (le serveur arbitre les coups)
-            for (int i = 1; i <= 4; i++) b.player_active[i] = 1;
-        }
-        while (!b.player_active[b.turn])
-            b.turn = (b.turn % 4) + 1;
     }
 
     // -------------------------------------------------------

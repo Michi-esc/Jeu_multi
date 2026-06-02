@@ -399,7 +399,13 @@ static int ecran_heberger(SDL_Renderer *r, Board *b_ptr) {
                 if (peut_jouer &&
                     mx>=(WINDOW_SIZE-200)/2 && mx<=(WINDOW_SIZE+200)/2 &&
                     my>=380 && my<=428) {
-                    reseau_envoyer_start();
+                    // Configurer l'état initial du plateau avant d'envoyer le START
+                    b_ptr->turn = WHITE;
+                    b_ptr->player_active[WHITE] = 1;
+                    b_ptr->player_active[BLACK] = (net_info.nb_connectes >= 1) ? 1 : 0;
+                    b_ptr->player_active[RED]   = (net_info.nb_connectes >= 2) ? 1 : 0;
+                    b_ptr->player_active[BLUE]  = (net_info.nb_connectes >= 3) ? 1 : 0;
+                    reseau_envoyer_start(b_ptr);
                     return 1;
                 }
             }
