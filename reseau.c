@@ -309,6 +309,10 @@ void reseau_envoyer_start(void) {
     net_info.pret = 1; // le serveur lui-même est aussi prêt
 }
 
+void reseau_set_board(Board *b) {
+    g_board = b;
+}
+
 void reseau_fermer(void) {
     g_running = 0;
     if (srv_sock != (sock_t)INVALIDE) { FERMER(srv_sock); srv_sock = (sock_t)INVALIDE; }

@@ -63,6 +63,10 @@ void reseau_envoyer_coup(int x1, int y1, int x2, int y2, Color couleur);
 // SERVEUR : envoie le signal START à tous les clients (PacketCoup spécial).
 void reseau_envoyer_start(void);
 
+// Réassigne le pointeur vers le plateau réel (à appeler après init_board dans main.c).
+// Nécessaire car le menu utilise un board temporaire pour initialiser les threads.
+void reseau_set_board(Board *b);
+
 // Ferme toutes les connexions et libère les ressources Winsock.
 void reseau_fermer(void);
 

@@ -52,6 +52,10 @@ int main(int argc, char *argv[]) {
     init_board(&b);
     init_systeme_securite();
 
+    // Réassigner le vrai plateau aux threads réseau (qui utilisaient un board temporaire)
+    if (config.mode_reseau != 0)
+        reseau_set_board(&b);
+
     if (config.mode_reseau == 0) {
         // --- SOLO : appliquer la config manuelle ---
         for (int i = 1; i <= 4; i++)
