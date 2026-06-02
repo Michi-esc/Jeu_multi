@@ -1,19 +1,18 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
-LIBS = -lmingw32 -lSDL2main -lSDL2 -lpthread -lws2_32
+CFLAGS = -Wall -Wextra -std=c11 $(shell sdl2-config --cflags)
+LIBS = $(shell sdl2-config --libs) -lpthread
 
-SRC = main.c plateau.c regles.c affichage.c moteur_thread.c synchronisation.c ia.c menu.c reseau.c
+SRC = $(wildcard *.c)
 OBJ = $(SRC:.c=.o)
-EXEC = echecs4.exe
+EXEC = jeu_multi
 
 all: $(EXEC)
 
 $(EXEC): $(OBJ)
-	$(CC) $(OBJ) -o $(EXEC) $(LIBS) -mwindows
+	$(CC) $(OBJ) -o $(EXEC) $(LIBS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	if exist *.o del /f *.o
-	if exist $(EXEC) del /f $(EXEC)
+	rm -f *.o $(EXEC)

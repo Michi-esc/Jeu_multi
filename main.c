@@ -10,24 +10,13 @@
 
 extern void passer_au_tour_suivant(Board *b);
 
-// Vérifie si un pion a atteint le bord opposé et doit être promu
-static int doit_promouvoir(Board *b, int x, int y) {
-    Piece p = b->grid[y][x];
-    if (p.type != PAWN) return 0;
-    if (p.color == RED    && y == 0)              return 1;
-    if (p.color == YELLOW && y == BOARD_SIZE - 1) return 1;
-    if (p.color == BLUE   && x == BOARD_SIZE - 1) return 1;
-    if (p.color == GREEN  && x == 0)              return 1;
-    return 0;
-}
-
 // Log terminal d'un coup (ajouté par Rôle 2)
 static void afficher_historique(Board *b, int x1, int y1, int x2, int y2, int is_ia) {
-    const char *noms_couleurs[] = {"", "ROUGE", "BLEU", "JAUNE", "VERT"};
+    const char *noms_couleurs[] = {"", "BLANC", "NOIR", "ROUGE", "BLEU"};
     const char *noms_pieces[]   = {"", "Pion", "Tour", "Cavalier", "Fou", "Reine", "Roi"};
     Color     c  = b->grid[y2][x2].color;
     PieceType pt = b->grid[y2][x2].type;
-    if (c >= RED && c <= GREEN && pt >= PAWN && pt <= KING) {
+    if (c >= WHITE && c <= BLUE && pt >= PAWN && pt <= KING) {
         printf("[%s] %s joue : %s (%d,%d) -> (%d,%d)\n",
                is_ia ? "IA" : "HUMAIN",
                noms_couleurs[c], noms_pieces[pt],
@@ -35,6 +24,7 @@ static void afficher_historique(Board *b, int x1, int y1, int x2, int y2, int is
     }
 }
 
+#undef main
 int main(int argc, char *argv[]) {
     (void)argc; (void)argv;
 
@@ -76,8 +66,8 @@ int main(int argc, char *argv[]) {
             // Serveur = RED + clients connectés
             b.player_active[RED]    = 1;
             b.player_active[BLUE]   = (net_info.nb_connectes >= 1) ? 1 : 0;
-            b.player_active[YELLOW] = (net_info.nb_connectes >= 2) ? 1 : 0;
-            b.player_active[GREEN]  = (net_info.nb_connectes >= 3) ? 1 : 0;
+            b.player_active[BLACK]  = (net_info.nb_connectes >= 2) ? 1 : 0;
+            b.player_active[WHITE]  = (net_info.nb_connectes >= 3) ? 1 : 0;
         } else {
             // Client : tous actifs (le serveur arbitre les coups)
             for (int i = 1; i <= 4; i++) b.player_active[i] = 1;

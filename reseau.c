@@ -46,7 +46,7 @@ static Board  *g_board           = NULL;
 static int     g_running         = 0;
 
 // Couleurs assignées aux clients dans l'ordre de connexion
-static const Color COULEURS_CLIENTS[MAX_CLIENTS] = { BLUE, YELLOW, GREEN };
+static const Color COULEURS_CLIENTS[MAX_CLIENTS] = { BLUE, BLACK, WHITE };
 
 static pthread_mutex_t mx_socks = PTHREAD_MUTEX_INITIALIZER;
 

@@ -93,7 +93,6 @@ static void draw_text(SDL_Renderer *r, const char *s, int x, int y, int sc,
 static int text_width(const char *s, int sc) {
     return (int)strlen(s) * (5 + 1) * sc;
 }
->>>>>>> e590370 (feat(role4): mode multijoueur reseau local TCP)
 
 // Bouton rectangle avec label centré
 // actif=1 → fond coloré + texte blanc ; actif=0 → fond sombre + texte teinté
@@ -126,9 +125,9 @@ static void draw_header(SDL_Renderer *r, const char *titre) {
 //  Données des joueurs
 // ================================================================
 static const uint8_t JCOLS[5][3] = {
-    {0,0,0}, {210,55,55}, {55,100,215}, {210,195,45}, {50,195,65}
+    {0,0,0}, {240,240,240}, {40,40,40}, {210,55,55}, {55,100,215}
 };
-static const char *JNOMS[5] = { "", "ROUGE", "BLEU", "JAUNE", "VERT" };
+static const char *JNOMS[5] = { "", "BLANC", "NOIR", "ROUGE", "BLEU" };
 
 // ================================================================
 //  ÉCRAN 1 — Choix du mode : SOLO / RESEAU
@@ -329,8 +328,8 @@ static int ecran_net_choix(SDL_Renderer *r) {
 // ================================================================
 //  ÉCRAN 4 — Héberger : attente des clients
 // ================================================================
-static const char *NOM_COULEUR[5] = {"", "ROUGE", "BLEU", "JAUNE", "VERT"};
-static const Color SLOTS[MAX_CLIENTS] = { BLUE, YELLOW, GREEN };
+static const char *NOM_COULEUR[5] = {"", "BLANC", "NOIR", "ROUGE", "BLEU"};
+static const Color SLOTS[MAX_CLIENTS] = { BLUE, BLACK, WHITE };
 
 static int ecran_heberger(SDL_Renderer *r, Board *b_ptr) {
     // Lance le serveur TCP, attend au moins 1 client, puis le serveur clique JOUER
@@ -606,3 +605,4 @@ int afficher_menu(SDL_Renderer *renderer, GameConfig *config) {
         }
     }
 }
+ 
